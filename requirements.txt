@@ -2,7 +2,6 @@ streamlit
 pandas
 openpyxl
 plotly
-plotly.graph_objcts
-plotly.express
+
 
 
