@@ -21,6 +21,8 @@ with st.form("login_form"):
                 df = pd.read_excel(uploaded_excel, sheet_name="Data")
                 df = df.melt(id_vars=['Date'], var_name='Series', value_name='Value')
                 df['Date'] = pd.to_datetime(df['Date'])
+             else:
+                st.info("Please upload the Excel file.")
 
                 # Sidebar for filters
                 st.sidebar.header("Filter Data:")
@@ -166,8 +168,7 @@ with st.form("login_form"):
 
                 st.plotly_chart(fig_petrol_2)
 
-            else:
-                st.info("Please upload the Excel file.")
+
         else:
             st.error("Invalid credentials. Please try again")
 
