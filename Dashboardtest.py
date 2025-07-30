@@ -1,171 +1,171 @@
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
+st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
 credentials = st.secrets["credentials"]
 
 with st.form("login_form"):
     username = st.text_input("Username")
-    password = st.text_input("Password", type = "password")
+    password = st.text_input("Password", type="password")
     submitted = st.form_submit_button("login")
-if submitted:
-    if username in credentials and credentials[username] == password:
-        st.success(f"Welcome,{username}!")
-       st.set_page_config(page_title="Petrol Dashboard", layout="wide")
-    uploaded_excel = st.file_uploader("Upload the excel file", type=["xlsm","xlsx"])
-   if uploaded_excel:
-    df = pd.read_excel(uploaded_excel,sheet_name="Data")
-    df= df.melt(id_vars=['Date'], var_name='Series', value_name='Value')
-    df['Date'] = pd.to_datetime(df['Date'])
 
-  else: 
-    st.info("Please upload the Excel file.")
-    
+    if submitted:
+        if username in credentials and credentials[username] == password:
+            st.success(f"Welcome, {username}!")
 
+            uploaded_excel = st.file_uploader("Upload the excel file", type=["xlsx"])
 
- #Create a sidebar for user to filter through data:
- st.sidebar.header("Filter Data:")
- selected_series = st.sidebar.multiselect('Choose Relevant Series:',df['Series'].unique(),default=df['Series'].unique())
- rhs_series = st.sidebar.multiselect('Choose Series to plot on Secondary Axis:',selected_series)
- third_series = st.sidebar.multiselect('Choose Series to plot on a Third Axis(LHS):', selected_series)
- fourth_series = st.sidebar.multiselect('Choose Series to plot on Fourth Axis(RHS):',selected_series)
+            if uploaded_excel:
+                df = pd.read_excel(uploaded_excel, sheet_name="Data")
+                df = df.melt(id_vars=['Date'], var_name='Series', value_name='Value')
+                df['Date'] = pd.to_datetime(df['Date'])
 
- start_date = st.sidebar.date_input('Select Start Date', value=df['Date'].min())
- end_date = st.sidebar.date_input('Select End Date', value=df['Date'].max())
+                # Sidebar for filters
+                st.sidebar.header("Filter Data:")
+                selected_series = st.sidebar.multiselect(
+                    'Choose Relevant Series:',
+                    df['Series'].unique(),
+                    default=df['Series'].unique()
+                )
+                rhs_series = st.sidebar.multiselect(
+                    'Choose Series to plot on Secondary Axis:',
+                    selected_series
+                )
+                third_series = st.sidebar.multiselect(
+                    'Choose Series to plot on a Third Axis(LHS):',
+                    selected_series
+                )
+                fourth_series = st.sidebar.multiselect(
+                    'Choose Series to plot on Fourth Axis(RHS):',
+                    selected_series
+                )
 
- start_date = pd.to_datetime(start_date)
- end_date = pd.to_datetime(end_date)
+                start_date = st.sidebar.date_input('Select Start Date', value=df['Date'].min())
+                end_date = st.sidebar.date_input('Select End Date', value=df['Date'].max())
 
- series_name = '<b> vs </b>'.join(selected_series) #to dynamically adjust chart title
- start_year= start_date.year
- end_year = end_date.year
+                start_date = pd.to_datetime(start_date)
+                end_date = pd.to_datetime(end_date)
 
- filtered_df = df.query(
-    " Series == @selected_series & Date >= @start_date & Date <= @end_date "
+                series_name = '<b> vs </b>'.join(selected_series)
+                start_year = start_date.year
+                end_year = end_date.year
 
- )
- st.dataframe(filtered_df)
+                filtered_df = df.query(
+                    "Series == @selected_series & Date >= @start_date & Date <= @end_date"
+                )
+                st.dataframe(filtered_df)
 
+                # Main chart
+                st.title("Petrol Dashboard")
+                st.markdown("##")
+                fig_petrol_2 = go.Figure()
 
- #MainPage for graphs:
- st.title("Petrol Dashboard")
- st.markdown("##")
+                for series in selected_series:
+                    series_data = filtered_df[filtered_df['Series'] == series]
 
+                    if series in fourth_series:
+                        axis = 'y4'
+                        label = f"{series} (Fourth)"
+                    elif series in third_series:
+                        axis = 'y3'
+                        label = f"{series} (Third)"
+                    elif series in rhs_series:
+                        axis = 'y2'
+                        label = f"{series} (RHS)"
+                    else:
+                        axis = 'y1'
+                        label = f"{series}"
 
- fig_petrol_2 = go.Figure()
+                    fig_petrol_2.add_trace(go.Scatter(
+                        x=series_data['Date'],
+                        y=series_data['Value'],
+                        mode='lines',
+                        name=label,
+                        yaxis=axis
+                    ))
 
- # Add series dynamically after allowing user to select on which axis they would like to display the series
- for series in selected_series:
-    series_data = filtered_df[filtered_df['Series'] == series]
-   
-    if series in fourth_series:
-        axis = 'y4'
-        label = f"{series} (Fourth)"
-    elif series in third_series:
-        axis= 'y3'
-        label= f"{series} (Third)"
-    elif series in rhs_series:
-        axis = 'y2'
-        label= f"{series} (RHS)"
-    else:
-        axis = 'y1'
-        label= f"{series}"
-   
-    fig_petrol_2.add_trace(go.Scatter(
-        x=series_data['Date'],
-        y=series_data['Value'],
-        mode='lines',
-        name=label,
-        yaxis=axis
-    ))
+                # Y-Axis formatting
+                def is_percent(series_name):
+                    return '%' in series_name or 'rate' in series_name.lower()
 
- #Making the Y Axes more Dynamic (i.e anticipate for % or Rand value):
+                format_map = {s: 'percent' if is_percent(s) else 'rands' for s in df['Series'].unique()}
 
- def is_percent(series_name):
-    return '%' in series_name or 'rate' in series_name.lower()
+                from collections import defaultdict
+                axis_series_map = defaultdict(list)
 
- format_map = {s: 'percent' if is_percent(s) else 'rands' for s in df['Series'].unique()}
+                for series in selected_series:
+                    if series in fourth_series:
+                        axis = 'y4'
+                    elif series in third_series:
+                        axis = 'y3'
+                    elif series in rhs_series:
+                        axis = 'y2'
+                    else:
+                        axis = 'y1'
+                    axis_series_map[axis].append(format_map.get(series, 'rands'))
 
- from collections import defaultdict
+                axis_tickformat = {}
+                axis_tickprefix = {}
 
- # Create a mapping from axis to the list of series formats
- axis_series_map = defaultdict(list)
+                for axis, formats in axis_series_map.items():
+                    if all(f == 'percent' for f in formats):
+                        axis_tickformat[axis] = ',.0%'
+                        axis_tickprefix[axis] = ''
+                    elif all(f == 'rands' for f in formats):
+                        axis_tickformat[axis] = ',.0f'
+                        axis_tickprefix[axis] = 'R'
+                    else:
+                        axis_tickformat[axis] = ',.0f'
+                        axis_tickprefix[axis] = 'R '
 
- for series in selected_series:
-    # Assign to axis
-    if series in fourth_series:
-        axis = 'y4'
-    elif series in third_series:
-        axis = 'y3'
-    elif series in rhs_series:
-        axis = 'y2'
-    else:
-        axis = 'y1'
-   axis_series_map[axis].append(format_map.get(series, 'rands'))
-   axis_tickformat = {}
-   axis_tickprefix = {}
+                fig_petrol_2.update_layout(
+                    title=f"{series_name} [{start_year}-{end_year}]",
+                    xaxis=dict(title='Date'),
+                    yaxis=dict(
+                        tickformat=axis_tickformat.get('y1'),
+                        tickprefix=axis_tickprefix.get('y1'),
+                    ),
+                    yaxis2=dict(
+                        overlaying='y',
+                        side='right',
+                        anchor='free',
+                        autoshift=True,
+                        showgrid=False,
+                        tickformat=axis_tickformat.get('y2'),
+                        tickprefix=axis_tickprefix.get('y2'),
+                    ),
+                    yaxis3=dict(
+                        overlaying='y',
+                        side='left',
+                        anchor='free',
+                        autoshift=True,
+                        showgrid=False,
+                        tickformat=axis_tickformat.get('y3'),
+                        tickprefix=axis_tickprefix.get('y3'),
+                    ),
+                    yaxis4=dict(
+                        overlaying='y',
+                        side='right',
+                        anchor='free',
+                        autoshift=True,
+                        showgrid=False,
+                        tickformat=axis_tickformat.get('y4'),
+                        tickprefix=axis_tickprefix.get('y4'),
+                    ),
+                    template='plotly_dark',
+                    legend=dict(
+                        orientation='h',
+                        yanchor='bottom',
+                        y=-0.5,
+                        xanchor='right',
+                        x=1
+                    )
+                )
 
- for axis, formats in axis_series_map.items():
-    if all(f == 'percent' for f in formats):
-        axis_tickformat[axis] = ',.0%'
-        axis_tickprefix[axis] = ''
-    elif all(f == 'rands' for f in formats):
-        axis_tickformat[axis] = ',.0f'
-        axis_tickprefix[axis] = 'R'
-    else:
-        # Mixed formats: default to Rands (or add custom logic or a warning)
-        axis_tickformat[axis] = ',.0f'
-        axis_tickprefix[axis] = 'R '
+                st.plotly_chart(fig_petrol_2)
 
-
- # Layout with three y-axes:
- fig_petrol_2.update_layout(
-    title=f"{series_name} [{start_year}- {end_year}]",
-    xaxis=dict(title='Date'),
-    yaxis=dict(
-        tickformat= axis_tickformat.get('y1'),
-        tickprefix = axis_tickprefix.get('y1'),
-    ),
-    yaxis2=dict(
-        overlaying='y',
-        side='right',
-        anchor= 'free',
-        autoshift= True,
-        showgrid=False,
-        tickformat = axis_tickformat.get('y2'),  #adjusting for format of axis depending on series selected
-        tickprefix = axis_tickprefix.get('y2'),  #adjusting for the prefix for the axis to show "R" for Rands if Rand Value shown as opposed to % value
-    ),
-    yaxis3=dict(
-        overlaying = 'y',
-        side = 'left',
-        anchor = 'free',
-        autoshift = True,
-        showgrid = False,
-        tickformat = axis_tickformat.get('y3'),
-        tickprefix = axis_tickprefix.get('y3'),
-    ),
-    yaxis4=dict(
-        overlaying = 'y',
-        side = 'right',
-        anchor = 'free',
-        autoshift =True,
-       showgrid=False,
-       tickformat = axis_tickformat.get('y4'),
-        tickprefix= axis_tickprefix.get('y4'),
-     ),
-     template='plotly_dark',
-    legend=dict(orientation='h', yanchor='bottom', y=-0.5 , xanchor='right', x=1)
-  )
-  st.plotly_chart(fig_petrol_2)
-
-else:
-st.error("Invalid credentials. Please try again")
-
-
-
-
-
-
+            else:
+                st.info("Please upload the Excel file.")
+        else:
+            st.error("Invalid credentials. Please try again")
 
 
 
