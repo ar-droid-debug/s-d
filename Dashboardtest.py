@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-st.write("DB userename:", st.secrets["db_username"])
-st.write("DB password:", st.secrets["db_password"])
 
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
