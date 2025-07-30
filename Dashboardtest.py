@@ -2,9 +2,17 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
+credentials = st.secrets["credentials"]
 
-st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
+with st.form("login_form"):
+    username = st.text_input("Username")
+    password = st.text_input("Password", type = "password")
+    submitted = st.form_submit_button("login")
+if submitted:
+    if username in credentials and credentials[username] == password:
+        st.success(f"Welcome,{username}!")
+       st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 uploaded_excel = st.file_uploader("Upload the excel file", type=["xlsm","xlsx"])
 if uploaded_excel:
     df = pd.read_excel(uploaded_excel,sheet_name="Data")
@@ -151,7 +159,8 @@ fig_petrol_2.update_layout(
 )
 st.plotly_chart(fig_petrol_2)
 
-
+else:
+st.error("Invalid credentials. Please try again")
 
 
 
