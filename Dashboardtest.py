@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
-uploaded_excel = st.file_uploader("Upload the excel file", type=["xlsx"])
+uploaded_excel = st.file_uploader("Upload the excel file", type=["xlsm"])
 if uploaded_excel:
     df = pd.read_excel(uploaded_excel,sheet_name="Data")
     df= df.melt(id_vars=['Date'], var_name='Series', value_name='Value')
