@@ -168,32 +168,8 @@ with st.form("login_form"):
 
             else:
                 st.info("Please upload the Excel file.")
-     else:
+        else:
             st.error("Invalid credentials. Please try again")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
