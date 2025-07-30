@@ -1,3 +1,7 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
 credentials = st.secrets["credentials"]
