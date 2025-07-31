@@ -19,7 +19,10 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days
 )
 
-name, authentication_status, username= authenticator.login("Login","main")
+name, authentication_status, username= authenticator.login(
+     location="main",
+     form_name= 'Login'
+)
 
 if authentication_status:
     st.success(f"Welcome {name}!")
