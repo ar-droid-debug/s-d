@@ -19,10 +19,17 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days
 )
 
-name, authentication_status, username= authenticator.login(location='main')
+login_result = authenticator.login(location='main')
 
-if authentication_status:
-    st.success(f"Welcome {name}!")
+if login_result:
+    name, authentication_status, username = login_result
+    if authentication_status:
+        st.success(f"Welcome {name}!")
+    elif authentication_status is False:
+        st.error("invalid username or password")
+    else:
+        st.warning("Please login")
+        
     if "upload_file" not in st.session_state:
         st.session_state.uploadedfile = None
 
