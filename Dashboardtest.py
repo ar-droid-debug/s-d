@@ -12,28 +12,30 @@ if "logged_in" not in st.session_state:
 
 # ─── 2) Show login form if not logged in ──────────────────────────────────
 if not st.session_state.logged_in:
-    with st.form("login_form", clear_on_submit=False):
+    with st.form("login_form"):
         st.write("## Please log in")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         submitted = st.form_submit_button("Login")
 
         if submitted:
-            creds = st.secrets["credentials"]  # expects a [credentials] table
+            creds = st.secrets["credentials"]  # expects TOML like:
+                                              # [credentials]
+                                              # user1 = "hash_or_pwd"
             if username in creds and creds[username] == password:
                 st.session_state.logged_in = True
                 st.session_state.user = username
                 st.success(f"Welcome, {username}!")
-                st.experimental_rerun()
             else:
                 st.error("Invalid credentials. Please try again")
+    # Stop here and show only the form until success
     st.stop()
 
-# ─── 3) Logged-in view ──────────────────────────────────────────────────────
+# ─── 3) Logged-in dashboard ─────────────────────────────────────────────────
 st.sidebar.success(f"👋 Hello, {st.session_state.user}")
 st.title("Petrol Dashboard")
 
-# ─── 4) File uploader with persistence ─────────────────────────────────────
+# ─── 4) Persistent file uploader ─────────────────────────────────────────────
 if "uploaded_file" not in st.session_state:
     st.session_state.uploaded_file = None
 
@@ -53,10 +55,10 @@ df["Date"] = pd.to_datetime(df["Date"])
 # ─── 6) Sidebar filters ────────────────────────────────────────────────────
 st.sidebar.header("Filter Data:")
 all_series   = df["Series"].unique()
-selected     = st.sidebar.multiselect("Choose Series (LHS):", all_series, default=all_series)
-rhs_series   = st.sidebar.multiselect("Secondary Axis (RHS):", selected)
-third_series = st.sidebar.multiselect("Third Axis (LHS):", selected)
-fourth_series= st.sidebar.multiselect("Fourth Axis (RHS):", selected)
+selected     = st.sidebar.multiselect("Series (LHS):", all_series, default=all_series)
+rhs_series   = st.sidebar.multiselect("Series (RHS):", selected)
+third_series = st.sidebar.multiselect("Series (3rd axis):", selected)
+fourth_series= st.sidebar.multiselect("Series (4th axis):", selected)
 
 start_date = st.sidebar.date_input("Start Date", value=df["Date"].min())
 end_date   = st.sidebar.date_input("End Date",   value=df["Date"].max())
@@ -69,36 +71,44 @@ st.dataframe(filtered)
 
 # ─── 7) Build & show Plotly chart ──────────────────────────────────────────
 fig = go.Figure()
+
 def is_percent(s): return "%" in s or "rate" in s.lower()
 fmt_map = {s: ("percent" if is_percent(s) else "rands") for s in df["Series"].unique()}
 
 axis_map = defaultdict(list)
 for s in selected:
-    if s in fourth_series: ax="y4"
-    elif s in third_series:   ax="y3"
-    elif s in rhs_series:     ax="y2"
-    else:                     ax="y1"
+    if s in fourth_series: ax = "y4"
+    elif s in third_series: ax = "y3"
+    elif s in rhs_series:   ax = "y2"
+    else:                   ax = "y1"
     axis_map[ax].append(fmt_map[s])
 
 tickfmt, tickpre = {}, {}
 for ax, fmts in axis_map.items():
     if all(f=="percent" for f in fmts):
         tickfmt[ax], tickpre[ax] = ",.0%", ""
-    elif all(f=="rands"  for f in fmts):
+    elif all(f=="rands" for f in fmts):
         tickfmt[ax], tickpre[ax] = ",.0f", "R"
     else:
         tickfmt[ax], tickpre[ax] = ",.0f", "R "
 
 for s in selected:
     series_data = filtered[filtered["Series"] == s]
-    if s in fourth_series: ax="y4"; name=f"{s} (4th)"
-    elif s in third_series:   ax="y3"; name=f"{s} (3rd)"
-    elif s in rhs_series:     ax="y2"; name=f"{s} (RHS)"
-    else:                     ax="y1"; name=s
+    if s in fourth_series:
+        ax, name = "y4", f"{s} (4th)"
+    elif s in third_series:
+        ax, name = "y3", f"{s} (3rd)"
+    elif s in rhs_series:
+        ax, name = "y2", f"{s} (RHS)"
+    else:
+        ax, name = "y1", s
 
     fig.add_trace(go.Scatter(
-        x=series_data["Date"], y=series_data["Value"],
-        mode="lines", name=name, yaxis=ax
+        x=series_data["Date"],
+        y=series_data["Value"],
+        mode="lines",
+        name=name,
+        yaxis=ax
     ))
 
 fig.update_layout(
@@ -116,5 +126,4 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
-
 
