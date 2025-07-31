@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit_authenticator as stauth
+import copy
 
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
-credentials = {"usernames": st.secrets["credentials"]["usernames"]}
+credentials = {"usernames": copy.deepcopy(st.secrets["credentials"]["usernames"])}
 cookie_name = st.secrets["cookie"]["name"]
 key = st.secrets["cookie"]["key"]
 cookie_expiry_days= int(st.secrets["cookie"]["expiry_days"])
