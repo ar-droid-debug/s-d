@@ -27,20 +27,40 @@ if login_result:
     if authentication_status:
         st.success(f"Welcome {name}!")
 
-        # --- Persistent file upload ---
         if "uploaded_file" not in st.session_state:
-            st.session_state.uploaded_file = None
+    st.session_state.uploaded_file = None
 
-        uploaded_excel = st.file_uploader("Upload the Excel file", type=["xlsx"])
-        if uploaded_excel is not None:
-            st.session_state.uploaded_file = uploaded_excel
+uploaded_excel = st.file_uploader("Upload the Excel file", type=["xlsx"])
+if uploaded_excel is not None:
+    st.session_state.uploaded_file = uploaded_excel
 
-        if st.session_state.uploaded_file:
-            df = pd.read_excel(st.session_state.uploaded_file, sheet_name="Data")
-            df = df.melt(id_vars=['Date'], var_name='Series', value_name='Value')
-            df['Date'] = pd.to_datetime(df['Date'])
-            st.dataframe(df)
+if st.session_state.uploaded_file:
+    df = pd.read_excel(st.session_state.uploaded_file, sheet_name="Data")
+    df = df.melt(id_vars=['Date'], var_name='Series', value_name='Value')
+    df['Date'] = pd.to_datetime(df['Date'])
+    st.dataframe(df)
 
+    # 🔹 Sidebar filters
+    st.sidebar.header("Filter Data:")
+    selected_series = st.sidebar.multiselect(
+        'Choose Relevant Series:',
+        df['Series'].unique(),
+        default=df['Series'].unique()
+    )
+    rhs_series = st.sidebar.multiselect('Secondary Axis:', selected_series)
+    third_series = st.sidebar.multiselect('Third Axis (LHS):', selected_series)
+    fourth_series = st.sidebar.multiselect('Fourth Axis (RHS):', selected_series)
+
+    # 🔹 Date filters
+    start_date = st.sidebar.date_input('Select Start Date', value=df['Date'].min())
+    end_date = st.sidebar.date_input('Select End Date', value=df['Date'].max())
+    start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
+
+    # 🔹 Filter dataframe
+    filtered_df = df.query(
+        "Series == @selected_series & Date >= @start_date & Date <= @end_date"
+    )
+    st.dataframe(filtered_df)
             # Sidebar filters
             st.sidebar.header("Filter Data:")
             selected_series = st.sidebar.multiselect(
