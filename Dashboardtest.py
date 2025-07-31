@@ -16,10 +16,14 @@ cookie_expiry_days = int(st.secrets["cookie"]["expiry_days"])
 
 authenticator = stauth.Authenticate(credentials, cookie_name, key, cookie_expiry_days)
 
-# --- Login form ---
-name, authentication_status, username = authenticator.login(location='main')
+# --- Login form (safe unpacking to avoid NoneType crash) ---
+login_result = authenticator.login(location='main')
+if login_result is not None:
+    name, authentication_status, username = login_result
+else:
+    name, authentication_status, username = None, None, None
 
-# Persist authentication in session state
+# --- Persist authentication state ---
 if authentication_status:
     st.session_state["authenticated"] = True
 elif authentication_status is False:
@@ -48,7 +52,7 @@ if st.session_state.get("authenticated"):
         df['Date'] = pd.to_datetime(df['Date'])
         st.dataframe(df)
 
-        # --- Sidebar Filters ---
+        # Sidebar filters
         st.sidebar.header("Filter Data:")
         selected_series = st.sidebar.multiselect(
             'Choose Relevant Series:',
@@ -135,7 +139,6 @@ if st.session_state.get("authenticated"):
         st.info("Please upload an Excel file to see the dashboard.")
 else:
     st.warning("Please log in")
-
 
 
 
