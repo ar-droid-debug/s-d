@@ -5,8 +5,7 @@ import streamlit_authenticator as stauth
 import copy
 
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
-usernames_dict = dict(st.secrets["credentials"]["usernames"])
-credentials = {"usernames": copy.deepcopy(usernames_dict)}
+credentials = {"usernames": dict(st.secrets["credentials"]["usernames"])}
 cookie_name = st.secrets["cookie"]["name"]
 key = st.secrets["cookie"]["key"]
 cookie_expiry_days= int(st.secrets["cookie"]["expiry_days"])
