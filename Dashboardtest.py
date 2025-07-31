@@ -32,12 +32,12 @@ authenticator = stauth.Authenticate(
 # ——————————————————————————————————————————————
 # 3️⃣ Display login / handle status
 # ——————————————————————————————————————————————
-name, auth_status, username = authenticator.login("Login", "main")
+name, auth_status, username = authenticator.login(location="main")
 
 if auth_status:
-    # Once logged in, offer logout in sidebar
+    # Offer logout in sidebar
     authenticator.logout("Logout", "sidebar")
-    st.sidebar.success(f"Welcome,   {name}!")
+    st.sidebar.success(f"Welcome, {name}!")
 
     # ——————————————————————————————————————————————
     # 4️⃣ Persistent file uploader
@@ -143,5 +143,6 @@ elif auth_status is False:
     st.error("❌ Username/password incorrect")
 else:
     st.warning("⬆️ Please enter your username and password")
+
 
 
