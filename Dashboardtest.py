@@ -6,11 +6,11 @@ import streamlit_authenticator as stauth
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
 credentials = {
-    "usernames": st.secrets.credentials.usernames
+    "usernames": st.secrets["credentials"]["usernames"]
 }
-cookie_name = st.secrets.credentials.cookie_name
-key = st.secrets.credentials.key
-cookie_expiry_days= st.secrets.credentials.cookie_expiry_days
+cookie_name = st.secrets["cookie_name"]
+key = st.secrets["key"]
+cookie_expiry_days= int(st.secrets["cookie_expiry_days"])
 
 authenticator = stauth.Authenticate(
     credentials,
