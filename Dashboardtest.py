@@ -6,140 +6,142 @@ from collections import defaultdict
 
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
-# --- Secure login setup ---
+# ——————————————————————————————————————————————
+# 1️⃣ Load credentials from secrets into a plain dict
+# ——————————————————————————————————————————————
 credentials = {
-    "usernames": {k: dict(v) for k, v in st.secrets["credentials"]["usernames"].items()}
+    "usernames": {
+        user: {"name": info["name"], "password": info["password"]}
+        for user, info in st.secrets["credentials"]["usernames"].items()
+    }
 }
-cookie_name = st.secrets["cookie"]["name"]
-key = st.secrets["cookie"]["key"]
+cookie_name        = st.secrets["cookie"]["name"]
+key                = st.secrets["cookie"]["key"]
 cookie_expiry_days = int(st.secrets["cookie"]["expiry_days"])
 
-authenticator = stauth.Authenticate(credentials, cookie_name, key, cookie_expiry_days)
+# ——————————————————————————————————————————————
+# 2️⃣ Initialize authenticator
+# ——————————————————————————————————————————————
+authenticator = stauth.Authenticate(
+    credentials,
+    cookie_name,
+    key,
+    cookie_expiry_days,
+)
 
-# --- Login form (safe unpacking to avoid NoneType crash) ---
-login_result = authenticator.login(location='main')
-if login_result is not None:
-    name, authentication_status, username = login_result
-else:
-    name, authentication_status, username = None, None, None
+# ——————————————————————————————————————————————
+# 3️⃣ Display login / handle status
+# ——————————————————————————————————————————————
+name, auth_status, username = authenticator.login("Login", "main")
 
-# --- Persist authentication state ---
-if authentication_status:
-    st.session_state["authenticated"] = True
-elif authentication_status is False:
-    st.session_state["authenticated"] = False
-    st.error("Invalid username or password")
-elif authentication_status is None and "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
-    st.warning("Please log in")
+if auth_status:
+    # Once logged in, offer logout in sidebar
+    authenticator.logout("Logout", "sidebar")
+    st.sidebar.success(f"Welcome,   {name}!")
 
-# --- Show dashboard if authenticated ---
-if st.session_state.get("authenticated"):
-    st.success(f"Welcome {name}!")
-
-    # --- Persistent file upload ---
+    # ——————————————————————————————————————————————
+    # 4️⃣ Persistent file uploader
+    # ——————————————————————————————————————————————
     if "uploaded_file" not in st.session_state:
         st.session_state.uploaded_file = None
 
-    uploaded_excel = st.file_uploader("Upload the Excel file", type=["xlsx"])
-    if uploaded_excel is not None:
-        st.session_state.uploaded_file = uploaded_excel
+    uploaded = st.file_uploader("Upload Excel file", type=["xlsx"])
+    if uploaded:
+        st.session_state.uploaded_file = uploaded
 
-    # --- Only show dashboard if file is uploaded ---
-    if st.session_state.uploaded_file:
-        df = pd.read_excel(st.session_state.uploaded_file, sheet_name="Data")
-        df = df.melt(id_vars=['Date'], var_name='Series', value_name='Value')
-        df['Date'] = pd.to_datetime(df['Date'])
-        st.dataframe(df)
+    if not st.session_state.uploaded_file:
+        st.info("Please upload the Excel file to proceed.")
+        st.stop()
 
-        # Sidebar filters
-        st.sidebar.header("Filter Data:")
-        selected_series = st.sidebar.multiselect(
-            'Choose Relevant Series:',
-            df['Series'].unique(),
-            default=df['Series'].unique()
-        )
-        rhs_series = st.sidebar.multiselect('Secondary Axis:', selected_series)
-        third_series = st.sidebar.multiselect('Third Axis (LHS):', selected_series)
-        fourth_series = st.sidebar.multiselect('Fourth Axis (RHS):', selected_series)
+    # ——————————————————————————————————————————————
+    # 5️⃣ Data processing
+    # ——————————————————————————————————————————————
+    df = pd.read_excel(st.session_state.uploaded_file, sheet_name="Data")
+    df = df.melt(id_vars=["Date"], var_name="Series", value_name="Value")
+    df["Date"] = pd.to_datetime(df["Date"])
 
-        start_date = st.sidebar.date_input('Select Start Date', value=df['Date'].min())
-        end_date = st.sidebar.date_input('Select End Date', value=df['Date'].max())
-        start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
+    # ——————————————————————————————————————————————
+    # 6️⃣ Sidebar filters
+    # ——————————————————————————————————————————————
+    st.sidebar.header("Filter Data")
+    all_series   = df["Series"].unique()
+    selected     = st.sidebar.multiselect("Series (LHS)", all_series, default=all_series)
+    rhs_series   = st.sidebar.multiselect("Series (RHS)", selected)
+    third_series = st.sidebar.multiselect("Series (3rd axis)", selected)
+    fourth_series= st.sidebar.multiselect("Series (4th axis)", selected)
 
-        # --- Filtered dataframe ---
-        series_name = '<b> vs </b>'.join(selected_series)
-        start_year, end_year = start_date.year, end_date.year
-        filtered_df = df.query(
-            "Series == @selected_series & Date >= @start_date & Date <= @end_date"
-        )
-        st.dataframe(filtered_df)
+    start_date = st.sidebar.date_input("Start Date", value=df["Date"].min())
+    end_date   = st.sidebar.date_input("End Date",   value=df["Date"].max())
+    start_date, end_date = pd.to_datetime(start_date), pd.to_datetime(end_date)
 
-        # --- Plotly Chart ---
-        st.title("Petrol Dashboard")
-        fig_petrol_2 = go.Figure()
+    filtered_df = df.query(
+        "Series in @selected and Date >= @start_date and Date <= @end_date"
+    )
 
-        # Add series dynamically with axis assignment
-        for series in selected_series:
-            series_data = filtered_df[filtered_df['Series'] == series]
-            if series in fourth_series:
-                axis, label = 'y4', f"{series} (Fourth)"
-            elif series in third_series:
-                axis, label = 'y3', f"{series} (Third)"
-            elif series in rhs_series:
-                axis, label = 'y2', f"{series} (RHS)"
-            else:
-                axis, label = 'y1', series
+    # ——————————————————————————————————————————————
+    # 7️⃣ Show filtered table
+    # ——————————————————————————————————————————————
+    st.dataframe(filtered_df)
 
-            fig_petrol_2.add_trace(go.Scatter(
-                x=series_data['Date'],
-                y=series_data['Value'],
-                mode='lines',
-                name=label,
-                yaxis=axis
-            ))
+    # ——————————————————————————————————————————————
+    # 8️⃣ Build Plotly figure
+    # ——————————————————————————————————————————————
+    fig = go.Figure()
+    for s in selected:
+        data = filtered_df[filtered_df["Series"] == s]
+        if s in fourth_series:
+            axis, name_label = "y4", f"{s} (4th)"
+        elif s in third_series:
+            axis, name_label = "y3", f"{s} (3rd)"
+        elif s in rhs_series:
+            axis, name_label = "y2", f"{s} (RHS)"
+        else:
+            axis, name_label = "y1", s
 
-        # Axis formatting
-        def is_percent(name): return '%' in name or 'rate' in name.lower()
-        format_map = {s: 'percent' if is_percent(s) else 'rands' for s in df['Series'].unique()}
+        fig.add_trace(go.Scatter(
+            x=data["Date"], y=data["Value"],
+            mode="lines", name=name_label, yaxis=axis
+        ))
 
-        axis_series_map = defaultdict(list)
-        for series in selected_series:
-            if series in fourth_series: axis = 'y4'
-            elif series in third_series: axis = 'y3'
-            elif series in rhs_series: axis = 'y2'
-            else: axis = 'y1'
-            axis_series_map[axis].append(format_map.get(series, 'rands'))
+    # Dynamic formatting
+    def is_percent(x): return "%" in x or "rate" in x.lower()
+    fmt = {s: ("percent" if is_percent(s) else "rands") for s in df["Series"].unique()}
 
-        axis_tickformat, axis_tickprefix = {}, {}
-        for axis, formats in axis_series_map.items():
-            if all(f == 'percent' for f in formats):
-                axis_tickformat[axis] = ',.0%'; axis_tickprefix[axis] = ''
-            elif all(f == 'rands' for f in formats):
-                axis_tickformat[axis] = ',.0f'; axis_tickprefix[axis] = 'R'
-            else:
-                axis_tickformat[axis] = ',.0f'; axis_tickprefix[axis] = 'R '
+    axis_map = defaultdict(list)
+    for s in selected:
+        if s in fourth_series: axis_map["y4"].append(fmt[s])
+        elif s in third_series:   axis_map["y3"].append(fmt[s])
+        elif s in rhs_series:     axis_map["y2"].append(fmt[s])
+        else:                     axis_map["y1"].append(fmt[s])
 
-        # Chart layout
-        fig_petrol_2.update_layout(
-            title=f"{series_name} [{start_year}-{end_year}]",
-            xaxis=dict(title='Date'),
-            yaxis=dict(tickformat=axis_tickformat.get('y1'), tickprefix=axis_tickprefix.get('y1')),
-            yaxis2=dict(overlaying='y', side='right', showgrid=False,
-                        tickformat=axis_tickformat.get('y2'), tickprefix=axis_tickprefix.get('y2')),
-            yaxis3=dict(overlaying='y', side='left', showgrid=False,
-                        tickformat=axis_tickformat.get('y3'), tickprefix=axis_tickprefix.get('y3')),
-            yaxis4=dict(overlaying='y', side='right', showgrid=False,
-                        tickformat=axis_tickformat.get('y4'), tickprefix=axis_tickprefix.get('y4')),
-            template='plotly_dark',
-            legend=dict(orientation='h', yanchor='bottom', y=-0.5, xanchor='right', x=1)
-        )
-        st.plotly_chart(fig_petrol_2)
-    else:
-        st.info("Please upload an Excel file to see the dashboard.")
+    tickfmt, tickpre = {}, {}
+    for ax, fmts in axis_map.items():
+        if all(f == "percent" for f in fmts):
+            tickfmt[ax], tickpre[ax] = ",.0%", ""
+        elif all(f == "rands" for f in fmts):
+            tickfmt[ax], tickpre[ax] = ",.0f", "R"
+        else:
+            tickfmt[ax], tickpre[ax] = ",.0f", "R "
+
+    fig.update_layout(
+        title=f"Petrol: {' vs '.join(selected)}",
+        xaxis=dict(title="Date"),
+        yaxis = dict(tickformat=tickfmt.get("y1"), tickprefix=tickpre.get("y1")),
+        yaxis2= dict(overlaying="y", side="right", showgrid=False,
+                     tickformat=tickfmt.get("y2"), tickprefix=tickpre.get("y2")),
+        yaxis3= dict(overlaying="y", side="left",  showgrid=False,
+                     tickformat=tickfmt.get("y3"), tickprefix=tickpre.get("y3")),
+        yaxis4= dict(overlaying="y", side="right", showgrid=False,
+                     tickformat=tickfmt.get("y4"), tickprefix=tickpre.get("y4")),
+        template="plotly_dark",
+        legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="right", x=1),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+elif auth_status is False:
+    st.error("❌ Username/password incorrect")
 else:
-    st.warning("Please log in")
-
-
+    st.warning("⬆️ Please enter your username and password")
 
 
