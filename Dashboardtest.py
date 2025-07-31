@@ -6,8 +6,7 @@ from collections import defaultdict
 
 st.set_page_config(page_title="Petrol Dashboard", layout="wide")
 
-
-credentials = {"usernames": dict(st.secrets["credentials"]["usernames"])}
+credentials = {"usernames": {k: dict(v) for k, v in st.secrets["credentials"]["usernames"].items()}}
 cookie_name = st.secrets["cookie"]["name"]
 key = st.secrets["cookie"]["key"]
 cookie_expiry_days = int(st.secrets["cookie"]["expiry_days"])
